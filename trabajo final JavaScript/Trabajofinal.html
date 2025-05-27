@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Agenda Personal Completa</title>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    :root{
+      --primario:#0d6efd;
+      --gris:#f8f9fa;
+      --rojo:#ff5c5c;
+      --amarillo:#ffc107;
+      --negro:#212529;
+    }
+    body{font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;line-height:1.6;background:var(--gris);color:var(--negro);padding:2rem 1rem;min-height:100vh;transition:background .3s ease;}
+    .contenedor{max-width:900px;margin:auto;background:#fff;padding:2rem 2.5rem;border-radius:.75rem;box-shadow:0 6px 16px rgba(0,0,0,.08);}
+    h1{margin-bottom:1rem;color:var(--primario);}
+    #topBar{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1rem;align-items:center;}
+    #topBar input,#topBar button{padding:.5rem;font-size:1rem;border-radius:4px;border:1px solid #ccc;}
+    #topBar button{background:var(--primario);color:#fff;cursor:pointer;}
+    #welcomeMsg{flex:1 1 250px;font-weight:600;min-height:2.2rem;display:flex;align-items:center;}
+    #addEventForm{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.6rem;margin-bottom:1.5rem;}
+    #addEventForm textarea{grid-column:1/-1;resize:vertical;min-height:60px;padding:.5rem;font-size:1rem;border-radius:4px;border:1px solid #ccc;}
+    #agendaList{list-style:none;padding:0;}
+    .event-item{display:flex;justify-content:space-between;align-items:flex-start;background:#fff;padding:.8rem 1rem;margin-bottom:.6rem;box-shadow:0 1px 3px rgba(0,0,0,.08);border-radius:4px;gap:.8rem;}
+    .event-info span{display:block;}
+    .event-title{font-weight:600;font-size:1.05rem;}
+    .controls{display:flex;gap:.4rem;}
+    .delete-btn{background:var(--rojo);color:#fff;border:none;padding:.35rem .8rem;border-radius:4px;cursor:pointer;}
+    .edit-btn{background:var(--amarillo);border:none;padding:.35rem .8rem;border-radius:4px;cursor:pointer;}
+    #searchInput{flex:1 1 200px;}
+  </style>
+</head>
+<body>
+  <div class="contenedor">
+    <h1>Agenda personal</h1>
+    <div id="topBar">
+      <span id="welcomeMsg"></span>
+      <input type="text" id="userName" placeholder="Ingresa tu nombre" />
+      <button id="greetBtn">Guardar nombre</button>
+      <input type="text" id="searchInput" placeholder="Buscar evento..." />
+      <button id="themeBtn">Cambiar tema</button>
+    </div>
+    <form id="addEventForm">
+      <input type="text" id="eventTitle" placeholder="Título del evento" required>
+      <input type="date" id="eventDate" required>
+      <input type="time" id="eventTime" required>
+      <input type="text" id="eventPlace" placeholder="Lugar" required>
+      <textarea id="eventNotes" placeholder="Notas adicionales (opcional)"></textarea>
+      <button type="submit">Añadir evento</button>
+    </form>
+    <ul id="agendaList"></ul>
+  </div>
+  <script>
+    const $ = id => document.getElementById(id);
+    const greetBtn=$('greetBtn'),userNameInput=$('userName'),welcomeMsg=$('welcomeMsg'),themeBtn=$('themeBtn'),addEventForm=$('addEventForm'),agendaList=$('agendaList'),searchInput=$('searchInput');
+    const THEMES=['var(--gris)','var(--primario)','var(--negro)'];let themeIndex=0;
+    themeBtn.addEventListener('click',()=>{themeIndex=(themeIndex+1)%THEMES.length;document.body.style.backgroundColor=THEMES[themeIndex];document.body.style.color=themeIndex===2?'#f1f3f5':'var(--negro)';});
+    const setWelcome=n=>welcomeMsg.textContent=`¡Hola ${n}! Bienvenido/a a tu agenda.`;const savedUser=localStorage.getItem('agendaUser');if(savedUser)setWelcome(savedUser);
+    greetBtn.onclick=()=>{const n=userNameInput.value.trim();if(!n)return alert('Por favor, ingresa tu nombre.');localStorage.setItem('agendaUser',n);setWelcome(n);userNameInput.value='';alert('Nombre guardado 😊');};
+    let events=JSON.parse(localStorage.getItem('events')||'[]');if(!Array.isArray(events))events=[];events=events.map(ev=>({title:ev.title||'',date:ev.date||'',time:ev.time||'',place:ev.place||'',notes:ev.notes||''}));
+    const dateFmt=new Intl.DateTimeFormat('es-AR',{day:'2-digit',month:'2-digit',year:'numeric',timeZone:'UTC'});const formatDate=d=>dateFmt.format(new Date(d+'T00:00:00Z'));const persist=()=>localStorage.setItem('events',JSON.stringify(events));
+    function render(list=events){agendaList.innerHTML='';list.forEach((ev,i)=>{const li=document.createElement('li');li.className='event-item';li.innerHTML=`<div class="event-info"><span class="event-title">${ev.title}</span><span>${formatDate(ev.date)} • ${ev.time} • ${ev.place}</span>${ev.notes?`<span>${ev.notes}</span>`:''}</div><div class="controls"><button class="edit-btn">Editar</button><button class="delete-btn">Eliminar</button></div>`;li.querySelector('.delete-btn').onclick=()=>{if(!confirm('¿Eliminar evento?'))return;events.splice(i,1);persist();render();};li.querySelector('.edit-btn').onclick=()=>{editEvent(i);};agendaList.appendChild(li);});}
+    function editEvent(i){const ev=events[i];ev.title=prompt('Título',ev.title)||ev.title;ev.date=prompt('Fecha AAAA-MM-DD',ev.date)||ev.date;ev.time=prompt('Hora HH:MM',ev.time)||ev.time;ev.place=prompt('Lugar',ev.place)||ev.place;ev.notes=prompt('Notas',ev.notes)||ev.notes;persist();render();}
+    addEventForm.onsubmit=e=>{e.preventDefault();const ev={title:$('eventTitle').value.trim(),date:$('eventDate').value,time:$('eventTime').value,place:$('eventPlace').value.trim(),notes:$('eventNotes').value.trim()};if(!ev.title||!ev.date||!ev.time||!ev.place)return alert('Completa todos los campos obligatorios');events.push(ev);persist();render();alert('Evento añadido ✔️');addEventForm.reset();};
+    searchInput.oninput=()=>{const term=(searchInput.value||'').toLowerCase();if(!term)return render();const flt=events.filter(ev=>(ev.title&&ev.title.toLowerCase().includes(term))||(ev.place&&ev.place.toLowerCase().includes(term)));render(flt);};
+    render();
+  </script>
+</body>
+</html>
